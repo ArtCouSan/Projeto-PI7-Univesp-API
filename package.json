@@ -1,0 +1,29 @@
+{
+  "name": "projeto-pi7-univesp-websocket",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "express": "^4.15.2",
+    "mongodb": "^3.6.9",
+    "mongoose": "^5.12.13",
+    "nodemon": "^2.0.7",
+    "socket.io": "^4.1.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "serve": "nodemon server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArtCouSan/Projeto-PI7-Univesp-WebSocket.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ArtCouSan/Projeto-PI7-Univesp-WebSocket/issues"
+  },
+  "homepage": "https://github.com/ArtCouSan/Projeto-PI7-Univesp-WebSocket#readme",
+  "description": ""
+}
