@@ -2,8 +2,14 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 const http = require('http').createServer(app);
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(bodyParser.json())
+const cors = require('cors');
+const mongoose = require('mongoose');
+
+const io = require('socket.io')(http, {
+    cors: {
+        origin: '*',
+    }
+});
 
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
@@ -11,10 +17,8 @@ app.use((req, res, next) => {
     app.use(cors());
     next();
 });
-
-const cors = require('cors');
-
-const mongoose = require('mongoose');
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 const OnibusSchema = new mongoose.Schema({
     placa: String,
@@ -30,6 +34,13 @@ const OnibusSchema = new mongoose.Schema({
 }, { collection: 'onibus' }
 );
 
+const Onibus = mongoose.model('Onibus', OnibusSchema);
+
+const OnibusStatus = {
+    ativo: "Ativo",
+    desativado: "Desativado"
+}
+
 app.get('/onibus', async (req, res) => {
     const uf = req.query.uf;
     const status = req.query.status;
@@ -42,7 +53,6 @@ app.get('/onibus', async (req, res) => {
 })
 
 app.post('/onibus', (req, res) => {
-
     const Onibus = mongoose.model('onibus', OnibusSchema, 'onibus');
     const placa = req.body.placa;
     const estaLotado = req.body.estaLotado;
@@ -54,7 +64,6 @@ app.post('/onibus', (req, res) => {
     const sentidoVolta = req.body.sentidoVolta;
     const identificacao = req.body.identificacao;
     const limite = req.body.limite;
-
     const onibus = new Onibus({
         placa,
         estaLotado,
@@ -67,18 +76,60 @@ app.post('/onibus', (req, res) => {
         identificacao,
         limite
     });
-
     try {
         onibus.save();
         res.send(onibus);
     } catch (err) {
         next(err);
     }
+});
+
+app.put('/onibus/:placa', (req, res) => {
+
+    const Onibus = mongoose.model('onibus', OnibusSchema, 'onibus');
+    const placa = req.params.placa;
+
+    const estaLotado = req.body.estaLotado;
+    const qtnPassageiros = req.body.qtnPassageiros;
+    const limite = req.body.limite;
+
+    Onibus.findOneAndUpdate({
+        "status": OnibusStatus.ativo,
+        "placa": placa
+    },
+        {
+            "estaLotado": estaLotado,
+            "qtnPassageiros": qtnPassageiros,
+            "limite": limite
+        }
+        ,
+        { new: true }
+        , function (err, onibus) {
+            let onibusFinded = onibus;
+            if (onibusFinded) {
+                res.send(onibusFinded);
+            } else {
+                console.log(err);
+            }
+        });
 
 });
 
-mongoose.connect('mongodb://localhost:27017/transportes');
-
-http.listen(3000, () => {
-    console.log('listening')
-})
+mongoose.connect('mongodb://localhost:27017/transportes?replicaSet=rs0',
+    { useNewUrlParser: true },
+    err => {
+        if (err) {
+            console.log(`[SERVER_ERROR] MongoDB Connection:`, err);
+        }
+        const OnibusModel = mongoose.model('onibus', OnibusSchema, 'onibus');
+        Onibus.watch().on("change", async infosChanged => {
+            const onibus = await OnibusModel.findById(infosChanged.documentKey._id);
+            io.emit('message-alteracao-onibus', onibus);
+        });
+        io.on('connection', (socket) => {
+            console.log('A user connected');
+        });
+        http.listen(3000, () => {
+            console.log('listening')
+        })
+    });
